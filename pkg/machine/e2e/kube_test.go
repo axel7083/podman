@@ -40,7 +40,7 @@ var _ = Describe("podman kube", func() {
 
 		// create the foobar directory
 		fooBarDir := filepath.Join(contextDir, "foobar")
-		err = os.Mkdir(fooBarDir, 0o755)
+		err = os.Mkdir(fooBarDir, 0o644)
 		Expect(err).ToNot(HaveOccurred())
 
 		// create the Containerfile for the foorbar image

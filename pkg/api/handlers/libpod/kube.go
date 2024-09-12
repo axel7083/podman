@@ -3,9 +3,13 @@
 package libpod
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
+	"syscall"
 
 	"github.com/containers/image/v5/types"
 	"github.com/containers/podman/v5/libpod"
@@ -14,10 +18,73 @@ import (
 	"github.com/containers/podman/v5/pkg/auth"
 	"github.com/containers/podman/v5/pkg/domain/entities"
 	"github.com/containers/podman/v5/pkg/domain/infra/abi"
+	"github.com/containers/storage/pkg/archive"
 	"github.com/gorilla/schema"
+	"github.com/sirupsen/logrus"
 )
 
+// move to util ?
+func genSpaceErr(err error) error {
+	if errors.Is(err, syscall.ENOSPC) {
+		return fmt.Errorf("context directory may be too large: %w", err)
+	}
+	return err
+}
+
+// move to util ?
+func extractTarFile(anchorDir string, r *http.Request) (string, error) {
+	buildDir := filepath.Join(anchorDir, "build")
+	err := os.Mkdir(buildDir, 0o700)
+	if err != nil {
+		return "", err
+	}
+
+	err = archive.Untar(r.Body, buildDir, nil)
+	return buildDir, err
+}
+
 func KubePlay(w http.ResponseWriter, r *http.Request) {
+	// extract the Content-Type from the request header
+	if hdr, found := r.Header["Content-Type"]; found && len(hdr) > 0 {
+		contentType := hdr[0]
+		switch contentType {
+		// backward compatibility
+		case "application/json":
+			break
+		case "application/tar":
+			logrus.Infof("tar file content type is  %s, should use \"application/x-tar\" content type", contentType)
+		case "application/x-tar":
+			break
+		default:
+			if utils.IsLibpodRequest(r) {
+				utils.BadRequest(w, "Content-Type", hdr[0],
+					fmt.Errorf("Content-Type: %s is not supported. Should be \"application/x-tar\"", hdr[0]))
+				return
+			}
+			logrus.Infof("tar file content type is  %s, should use \"application/x-tar\" content type", contentType)
+		}
+	}
+
+	anchorDir, err := os.MkdirTemp("", "libpod_kube")
+	if err != nil {
+		utils.InternalServerError(w, err)
+		return
+	}
+
+	// cleanup
+	defer func() {
+		err := os.RemoveAll(anchorDir)
+		if err != nil {
+			logrus.Warn(fmt.Errorf("failed to remove build scratch directory %q: %w", anchorDir, err))
+		}
+	}()
+
+	contextDirectory, err := extractTarFile(anchorDir, r)
+	if err != nil {
+		utils.InternalServerError(w, genSpaceErr(err))
+		return
+	}
+
 	runtime := r.Context().Value(api.RuntimeKey).(*libpod.Runtime)
 	decoder := r.Context().Value(api.DecoderKey).(*schema.Decoder)
 	query := struct {
@@ -110,6 +177,7 @@ func KubePlay(w http.ResponseWriter, r *http.Request) {
 		Username:           username,
 		Userns:             query.Userns,
 		Wait:               query.Wait,
+		ContextDir:         contextDirectory,
 	}
 	if _, found := r.URL.Query()["tlsVerify"]; found {
 		options.SkipTLSVerify = types.NewOptionalBool(!query.TLSVerify)

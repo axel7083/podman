@@ -36,6 +36,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// move to util ?
 func genSpaceErr(err error) error {
 	if errors.Is(err, syscall.ENOSPC) {
 		return fmt.Errorf("context directory may be too large: %w", err)
@@ -43,6 +44,7 @@ func genSpaceErr(err error) error {
 	return err
 }
 
+// build image
 func BuildImage(w http.ResponseWriter, r *http.Request) {
 	if hdr, found := r.Header["Content-Type"]; found && len(hdr) > 0 {
 		contentType := hdr[0]
@@ -917,6 +919,7 @@ func parseLibPodIsolation(isolation string) (buildah.Isolation, error) {
 	return parse.IsolationOption(isolation)
 }
 
+// move to util
 func extractTarFile(anchorDir string, r *http.Request) (string, error) {
 	buildDir := filepath.Join(anchorDir, "build")
 	err := os.Mkdir(buildDir, 0o700)

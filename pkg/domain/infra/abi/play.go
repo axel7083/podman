@@ -328,6 +328,7 @@ func (ic *ContainerEngine) PlayKube(ctx context.Context, body io.Reader, options
 
 		switch kind {
 		case "Pod":
+			// parsing pod
 			var podYAML v1.Pod
 			var podTemplateSpec v1.PodTemplateSpec
 
