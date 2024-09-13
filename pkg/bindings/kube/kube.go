@@ -3,9 +3,14 @@ package kube
 import (
 	"bytes"
 	"context"
+	"fmt"
+	v1 "github.com/containers/podman/v5/pkg/k8s.io/api/core/v1"
+	"github.com/containers/podman/v5/pkg/util"
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
+	"slices"
 	"strconv"
 
 	"github.com/containers/image/v5/types"
@@ -14,6 +19,7 @@ import (
 	"github.com/containers/podman/v5/pkg/bindings/generate"
 	entitiesTypes "github.com/containers/podman/v5/pkg/domain/entities/types"
 	"github.com/sirupsen/logrus"
+	"sigs.k8s.io/yaml"
 )
 
 func Play(ctx context.Context, path string, options *PlayOptions) (*entitiesTypes.KubePlayReport, error) {
@@ -75,6 +81,21 @@ func PlayWithBody(ctx context.Context, body io.Reader, options *PlayOptions) (*e
 		return nil, err
 	}
 
+	if options.GetBuild() && len(options.GetContextDir()) == 0 {
+		return nil, fmt.Errorf("build option may be specified only with context-dir")
+	}
+
+	if options.GetBuild() {
+		// specify the content type
+		header.Set("Content-Type", "application/x-tar")
+		tar, err := getTarKubePlayContext(body, options.GetContextDir())
+		if err != nil {
+			return nil, err
+		}
+		defer tar.Close()
+		body = tar
+	}
+
 	response, err := conn.DoRequest(ctx, body, http.MethodPost, "/play/kube", params, header)
 	if err != nil {
 		return nil, err
@@ -86,6 +107,104 @@ func PlayWithBody(ctx context.Context, body io.Reader, options *PlayOptions) (*e
 	}
 
 	return &report, nil
+}
+
+// OSReadDir return an array of files and directories of a folder
+// it is not recursive
+func OSReadDir(root string) ([]string, error) {
+	var files []string
+	f, err := os.Open(root)
+	if err != nil {
+		return files, err
+	}
+	fileInfo, err := f.Readdir(-1)
+	f.Close()
+	if err != nil {
+		return files, err
+	}
+
+	for _, file := range fileInfo {
+		files = append(files, filepath.Join(root, file.Name()))
+	}
+	return files, nil
+}
+
+func getTarKubePlayContext(reader io.Reader, contextDir string) (io.ReadCloser, error) {
+	// read the document
+	yamlBytes, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
+
+	// split yaml document
+	documentList, err := util.SplitMultiDocYAML(yamlBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	// get all the files and directories in the context directory
+	files, err := OSReadDir(contextDir)
+	if err != nil {
+		return nil, err
+	}
+
+	// ensure we never exclude the play.yaml file from the tar
+	seen := []string{"play.yaml"}
+	for _, document := range documentList {
+		kind, err := util.GetKubeKind(document)
+		if err != nil {
+			return nil, fmt.Errorf("unable to read kube YAML: %w", err)
+		}
+
+		// ignore non-pod resources
+		if kind != "Pod" {
+			continue
+		}
+
+		var podYAML v1.Pod
+		if err := yaml.Unmarshal(document, &podYAML); err != nil {
+			return nil, fmt.Errorf("unable to read YAML as Kube Pod: %w", err)
+		}
+
+		for _, container := range podYAML.Spec.Containers {
+			buildFile, err := util.GetBuildFile(container.Image, contextDir)
+			if err != nil {
+				return nil, err
+			}
+
+			if len(buildFile) == 0 {
+				continue
+			}
+
+			seen = append(seen, filepath.Dir(buildFile))
+		}
+	}
+
+	var excluded = make([]string, 0)
+	for _, file := range files {
+		if !slices.Contains(seen, file) {
+			excluded = append(excluded, file)
+		}
+	}
+
+	// create a tmp directory
+	tmp, err := os.MkdirTemp("", "kube")
+	if err != nil {
+		return nil, err
+	}
+
+	err = os.WriteFile(filepath.Join(tmp, "play.yaml"), yamlBytes, 0644)
+	if err != nil {
+		return nil, err
+	}
+
+	tarfile, err := util.CreateTar(excluded, contextDir, tmp)
+	if err != nil {
+		logrus.Errorf("Cannot tar entries %v error: %v", contextDir, err)
+		return nil, err
+	}
+
+	return tarfile, nil
 }
 
 func Down(ctx context.Context, path string, options DownOptions) (*entitiesTypes.KubePlayReport, error) {

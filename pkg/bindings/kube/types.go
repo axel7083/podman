@@ -61,6 +61,10 @@ type PlayOptions struct {
 	// Wait - indicates whether to return after having created the pods
 	Wait             *bool
 	ServiceContainer *bool
+	// ContextDir - directory containing image contexts used for Build
+	ContextDir *string
+	// Indicator to build all images with Containerfile or Dockerfile
+	Build *bool
 }
 
 // ApplyOptions are optional options for applying kube YAML files to a k8s cluster

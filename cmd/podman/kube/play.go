@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -174,6 +175,13 @@ func playFlags(cmd *cobra.Command) {
 	flags.BoolVar(&playOptions.UseLongAnnotations, noTruncFlagName, false, "Use annotations that are not truncated to the Kubernetes maximum length of 63 characters")
 	_ = flags.MarkHidden(noTruncFlagName)
 
+	buildFlagName := "build"
+	flags.BoolVar(&playOptions.BuildCLI, buildFlagName, false, "Build all images in a YAML (given Containerfiles exist)")
+
+	contextDirFlagName := "context-dir"
+	flags.StringVar(&playOptions.ContextDir, contextDirFlagName, "", "Path to top level of context directory")
+	_ = cmd.RegisterFlagCompletionFunc(contextDirFlagName, completion.AutocompleteDefault)
+
 	if !registry.IsRemote() {
 		certDirFlagName := "cert-dir"
 		flags.StringVar(&playOptions.CertDir, certDirFlagName, "", "`Pathname` of a directory containing TLS certificates and keys")
@@ -182,13 +190,6 @@ func playFlags(cmd *cobra.Command) {
 		seccompProfileRootFlagName := "seccomp-profile-root"
 		flags.StringVar(&playOptions.SeccompProfileRoot, seccompProfileRootFlagName, defaultSeccompRoot, "Directory path for seccomp profiles")
 		_ = cmd.RegisterFlagCompletionFunc(seccompProfileRootFlagName, completion.AutocompleteDefault)
-
-		buildFlagName := "build"
-		flags.BoolVar(&playOptions.BuildCLI, buildFlagName, false, "Build all images in a YAML (given Containerfiles exist)")
-
-		contextDirFlagName := "context-dir"
-		flags.StringVar(&playOptions.ContextDir, contextDirFlagName, "", "Path to top level of context directory")
-		_ = cmd.RegisterFlagCompletionFunc(contextDirFlagName, completion.AutocompleteDefault)
 
 		flags.StringVar(&playOptions.SignaturePolicy, "signature-policy", "", "`Pathname` of signature policy file (not usually used)")
 
@@ -277,6 +278,19 @@ func play(cmd *cobra.Command, args []string) error {
 	reader, err := readerFromArg(args[0])
 	if err != nil {
 		return err
+	}
+
+	// define default context directory
+	if playOptions.Build == types.OptionalBoolTrue && len(playOptions.ContextDir) == 0 {
+		if filepath.IsAbs(args[0]) {
+			playOptions.ContextDir = filepath.Dir(args[0])
+		} else {
+			cwd, err := os.Getwd()
+			if err != nil {
+				return err
+			}
+			playOptions.ContextDir = filepath.Dir(filepath.Join(cwd, args[0]))
+		}
 	}
 
 	if playOptions.Down {

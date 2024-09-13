@@ -3,10 +3,9 @@
 package libpod
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
-	"net"
-	"net/http"
-
 	"github.com/containers/image/v5/types"
 	"github.com/containers/podman/v5/libpod"
 	"github.com/containers/podman/v5/pkg/api/handlers/utils"
@@ -14,10 +13,94 @@ import (
 	"github.com/containers/podman/v5/pkg/auth"
 	"github.com/containers/podman/v5/pkg/domain/entities"
 	"github.com/containers/podman/v5/pkg/domain/infra/abi"
+	"github.com/containers/storage/pkg/archive"
 	"github.com/gorilla/schema"
+	"github.com/sirupsen/logrus"
+	"io"
+	"net"
+	"net/http"
+	"os"
+	"path/filepath"
 )
 
+func extractReader(anchorDir string, r *http.Request) (io.Reader, error) {
+	hdr, found := r.Header["Content-Type"]
+
+	// If Content-Type is not specific we use the body
+	if !found || len(hdr) == 0 {
+		return r.Body, nil
+	}
+
+	var reader io.Reader
+	switch hdr[0] {
+	// backward compatibility
+	case "application/json":
+		fallthrough
+	case "application/yaml":
+		fallthrough
+	case "application/text":
+		fallthrough
+	case "application/x-yaml":
+		reader = r.Body
+		break
+	case "application/x-tar":
+		// un-tar the content
+		err := archive.Untar(r.Body, anchorDir, nil)
+		if err != nil {
+			return nil, err
+		}
+		// check for play.yaml
+		path := filepath.Join(anchorDir, "play.yaml")
+		_, err = os.Stat(path)
+		// specify a message if the file does not exist
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("file not found: tar missing play.yaml file at root")
+		} else if err != nil {
+			return nil, err
+		}
+
+		f, err := os.Open(path)
+		if err != nil {
+			return nil, err
+		}
+		defer f.Close()
+		reader = f
+
+		break
+	default:
+		return nil, fmt.Errorf("Content-Type: %s is not supported. Should be \"application/x-tar\"", hdr[0])
+	}
+
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
+	return bytes.NewReader(data), nil
+}
+
 func KubePlay(w http.ResponseWriter, r *http.Request) {
+	// create a tmp directory
+	contextDirectory, err := os.MkdirTemp("", "libpod_kube")
+	if err != nil {
+		utils.InternalServerError(w, err)
+		return
+	}
+
+	// cleanup the tmp directory
+	defer func() {
+		err := os.RemoveAll(contextDirectory)
+		if err != nil {
+			logrus.Warn(fmt.Errorf("failed to remove libpod_kube tmp directory %q: %w", contextDirectory, err))
+		}
+	}()
+
+	// extract the reader
+	reader, err := extractReader(contextDirectory, r)
+	if err != nil {
+		utils.InternalServerError(w, err)
+		return
+	}
+
 	runtime := r.Context().Value(api.RuntimeKey).(*libpod.Runtime)
 	decoder := r.Context().Value(api.DecoderKey).(*schema.Decoder)
 	query := struct {
@@ -110,6 +193,7 @@ func KubePlay(w http.ResponseWriter, r *http.Request) {
 		Username:           username,
 		Userns:             query.Userns,
 		Wait:               query.Wait,
+		ContextDir:         contextDirectory,
 	}
 	if _, found := r.URL.Query()["tlsVerify"]; found {
 		options.SkipTLSVerify = types.NewOptionalBool(!query.TLSVerify)
@@ -117,7 +201,7 @@ func KubePlay(w http.ResponseWriter, r *http.Request) {
 	if _, found := r.URL.Query()["start"]; found {
 		options.Start = types.NewOptionalBool(query.Start)
 	}
-	report, err := containerEngine.PlayKube(r.Context(), r.Body, options)
+	report, err := containerEngine.PlayKube(r.Context(), reader, options)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, fmt.Errorf("playing YAML file: %w", err))
 		return

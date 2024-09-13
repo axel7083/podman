@@ -1,6 +1,6 @@
 //go:build !windows
 
-package images
+package util
 
 import (
 	"os"
