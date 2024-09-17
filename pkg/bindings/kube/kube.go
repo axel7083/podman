@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"slices"
 	"strconv"
 
 	"github.com/containers/image/v5/types"
@@ -109,26 +108,6 @@ func PlayWithBody(ctx context.Context, body io.Reader, options *PlayOptions) (*e
 	return &report, nil
 }
 
-// OSReadDir return an array of files and directories of a folder
-// it is not recursive
-func OSReadDir(root string) ([]string, error) {
-	var files []string
-	f, err := os.Open(root)
-	if err != nil {
-		return files, err
-	}
-	fileInfo, err := f.Readdir(-1)
-	f.Close()
-	if err != nil {
-		return files, err
-	}
-
-	for _, file := range fileInfo {
-		files = append(files, filepath.Join(root, file.Name()))
-	}
-	return files, nil
-}
-
 func getTarKubePlayContext(reader io.Reader, contextDir string) (io.ReadCloser, error) {
 	// read the document
 	yamlBytes, err := io.ReadAll(reader)
@@ -142,15 +121,12 @@ func getTarKubePlayContext(reader io.Reader, contextDir string) (io.ReadCloser, 
 		return nil, err
 	}
 
-	// get all the files and directories in the context directory
-	files, err := OSReadDir(contextDir)
-	if err != nil {
-		return nil, err
-	}
+	// Create a new TarBuilder
+	tb := util.NewTarBuilder()
 
-	// ensure we never exclude the play.yaml file from the tar
-	seen := []string{"play.yaml"}
+	// Iterate over the documents
 	for _, document := range documentList {
+		// Get the kind
 		kind, err := util.GetKubeKind(document)
 		if err != nil {
 			return nil, fmt.Errorf("unable to read kube YAML: %w", err)
@@ -176,14 +152,11 @@ func getTarKubePlayContext(reader io.Reader, contextDir string) (io.ReadCloser, 
 				continue
 			}
 
-			seen = append(seen, filepath.Dir(buildFile))
-		}
-	}
-
-	var excluded = make([]string, 0)
-	for _, file := range files {
-		if !slices.Contains(seen, file) {
-			excluded = append(excluded, file)
+			// add the context directory of the container image to the tar
+			err = tb.Add(filepath.Dir(buildFile), container.Image)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -193,12 +166,16 @@ func getTarKubePlayContext(reader io.Reader, contextDir string) (io.ReadCloser, 
 		return nil, err
 	}
 
-	err = os.WriteFile(filepath.Join(tmp, "play.yaml"), yamlBytes, 0644)
+	// create a tmp file for the yaml document
+	playYaml := filepath.Join(tmp, "play.yaml")
+	err = os.WriteFile(playYaml, yamlBytes, 0644)
 	if err != nil {
 		return nil, err
 	}
 
-	tarfile, err := util.CreateTar(excluded, contextDir, tmp)
+	err = tb.Add(playYaml, "play.yaml")
+
+	tarfile, err := tb.Build()
 	if err != nil {
 		logrus.Errorf("Cannot tar entries %v error: %v", contextDir, err)
 		return nil, err
