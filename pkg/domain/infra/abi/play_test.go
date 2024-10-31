@@ -4,6 +4,7 @@ package abi
 
 import (
 	"bytes"
+	"github.com/containers/podman/v5/pkg/util"
 	"testing"
 
 	v1 "github.com/containers/podman/v5/pkg/k8s.io/api/core/v1"
@@ -196,84 +197,13 @@ kind: Pod
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			kind, err := getKubeKind([]byte(test.kubeYAML))
+			kind, err := util.GetKubeKind([]byte(test.kubeYAML))
 			if test.expectError {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), test.expectedErrorMsg)
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, test.expected, kind)
-			}
-		})
-	}
-}
-
-func TestSplitMultiDocYAML(t *testing.T) {
-	tests := []struct {
-		name             string
-		kubeYAML         string
-		expectError      bool
-		expectedErrorMsg string
-		expected         int
-	}{
-		{
-			"ValidNumberOfDocs",
-			`
-apiVersion: v1
-kind: Pod
----
-apiVersion: v1
-kind: Pod
----
-apiVersion: v1
-kind: Pod
-`,
-			false,
-			"",
-			3,
-		},
-		{
-			"InvalidMultiDocYAML",
-			`
-apiVersion: v1
-kind: Pod
----
-apiVersion: v1
-kind: Pod
--
-`,
-			true,
-			"multi doc yaml could not be split",
-			0,
-		},
-		{
-			"DocWithList",
-			`
-apiVersion: v1
-kind: List
-items:
-- apiVersion: v1
-  kind: Pod
-- apiVersion: v1
-  kind: Pod
-- apiVersion: v1
-  kind: Pod
-`,
-			false,
-			"",
-			3,
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			docs, err := splitMultiDocYAML([]byte(test.kubeYAML))
-			if test.expectError {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), test.expectedErrorMsg)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, test.expected, len(docs))
 			}
 		})
 	}
