@@ -40,8 +40,10 @@ spec:
 				// Create a temporary context directory with a Dockerfile for the "foobar" image
 				tmpDir := t.TempDir()
 				fooBarDir := filepath.Join(tmpDir, "foobar")
-				os.Mkdir(fooBarDir, 0755)
-				os.WriteFile(filepath.Join(fooBarDir, "Containerfile"), []byte("FROM busybox"), 0644)
+				err := os.Mkdir(fooBarDir, 0755)
+				assert.NoError(t, err)
+				err = os.WriteFile(filepath.Join(fooBarDir, "Containerfile"), []byte("FROM busybox"), 0644)
+				assert.NoError(t, err)
 				return tmpDir
 			},
 			expectedFiles: map[string]string{
@@ -74,12 +76,16 @@ spec:
 			setup: func(t *testing.T) string {
 				tmpDir := t.TempDir()
 				fooBarDir := filepath.Join(tmpDir, "foobar")
-				os.Mkdir(fooBarDir, 0755)
-				os.WriteFile(filepath.Join(fooBarDir, "Containerfile"), []byte("FROM busybox:1"), 0644)
+				err := os.Mkdir(fooBarDir, 0755)
+				assert.NoError(t, err)
+				err = os.WriteFile(filepath.Join(fooBarDir, "Containerfile"), []byte("FROM busybox:1"), 0644)
+				assert.NoError(t, err)
 
 				barfooDir := filepath.Join(tmpDir, "barfoo")
-				os.Mkdir(barfooDir, 0755)
-				os.WriteFile(filepath.Join(barfooDir, "Containerfile"), []byte("FROM busybox:2"), 0644)
+				err = os.Mkdir(barfooDir, 0755)
+				assert.NoError(t, err)
+				err = os.WriteFile(filepath.Join(barfooDir, "Containerfile"), []byte("FROM busybox:2"), 0644)
+				assert.NoError(t, err)
 				return tmpDir
 			},
 			expectedFiles: map[string]string{
@@ -177,12 +183,16 @@ spec:
 			setup: func(t *testing.T) string {
 				tmpDir := t.TempDir()
 				fooBarDir := filepath.Join(tmpDir, "foobar")
-				os.Mkdir(fooBarDir, 0755)
-				os.WriteFile(filepath.Join(fooBarDir, "Containerfile"), []byte("FROM busybox:1"), 0644)
+				err := os.Mkdir(fooBarDir, 0755)
+				assert.NoError(t, err)
+				err = os.WriteFile(filepath.Join(fooBarDir, "Containerfile"), []byte("FROM busybox:1"), 0644)
+				assert.NoError(t, err)
 
 				barfooDir := filepath.Join(tmpDir, "barfoo")
-				os.Mkdir(barfooDir, 0755)
-				os.WriteFile(filepath.Join(barfooDir, "Containerfile"), []byte("FROM busybox:2"), 0644)
+				err = os.Mkdir(barfooDir, 0755)
+				assert.NoError(t, err)
+				err = os.WriteFile(filepath.Join(barfooDir, "Containerfile"), []byte("FROM busybox:2"), 0644)
+				assert.NoError(t, err)
 				return tmpDir
 			},
 			expectedFiles: map[string]string{

@@ -3,14 +3,15 @@ package util
 import (
 	"archive/tar"
 	"fmt"
-	"github.com/containers/storage/pkg/fileutils"
-	"github.com/containers/storage/pkg/ioutils"
-	"github.com/hashicorp/go-multierror"
-	gzip "github.com/klauspost/pgzip"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
+
+	"github.com/containers/storage/pkg/fileutils"
+	"github.com/containers/storage/pkg/ioutils"
+	"github.com/hashicorp/go-multierror"
+	gzip "github.com/klauspost/pgzip"
 )
 
 type Devino struct {
@@ -89,7 +90,7 @@ func (tb *TarBuilder) Build() (io.ReadCloser, error) {
 
 				// Check exclusion patterns
 				if !filepath.IsAbs(targetPath) {
-					excluded, err := pm.Matches(targetPath)
+					excluded, err := pm.IsMatch(targetPath)
 					if err != nil {
 						return fmt.Errorf("checking if %q is excluded: %w", targetPath, err)
 					}

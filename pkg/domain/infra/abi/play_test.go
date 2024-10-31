@@ -4,8 +4,9 @@ package abi
 
 import (
 	"bytes"
-	"github.com/containers/podman/v5/pkg/util"
 	"testing"
+
+	"github.com/containers/podman/v5/pkg/util"
 
 	v1 "github.com/containers/podman/v5/pkg/k8s.io/api/core/v1"
 	v12 "github.com/containers/podman/v5/pkg/k8s.io/apimachinery/pkg/apis/meta/v1"

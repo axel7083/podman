@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	util2 "github.com/containers/podman/v5/pkg/bindings/internal/util"
 	"io"
 	"io/fs"
 	"net/http"
@@ -16,6 +15,8 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+
+	util2 "github.com/containers/podman/v5/pkg/bindings/internal/util"
 
 	"github.com/containers/buildah/define"
 	imageTypes "github.com/containers/image/v5/types"

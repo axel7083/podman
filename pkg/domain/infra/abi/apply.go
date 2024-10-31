@@ -9,11 +9,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/containers/podman/v5/pkg/util"
 	"io"
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/containers/podman/v5/pkg/util"
 
 	"github.com/containers/podman/v5/pkg/domain/entities"
 	k8sAPI "github.com/containers/podman/v5/pkg/k8s.io/api/core/v1"

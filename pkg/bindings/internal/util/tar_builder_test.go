@@ -22,7 +22,8 @@ func TestTarBuilder(t *testing.T) {
 			description: "single file",
 			setup: func(tempDir string) []struct{ source, target string } {
 				srcFile := filepath.Join(tempDir, "file1.txt")
-				os.WriteFile(srcFile, []byte("hello"), 0644)
+				err := os.WriteFile(srcFile, []byte("hello"), 0644)
+				assert.NoError(t, err)
 				return []struct{ source, target string }{
 					{source: srcFile, target: "file1.txt"},
 				}
@@ -38,8 +39,10 @@ func TestTarBuilder(t *testing.T) {
 			setup: func(tempDir string) []struct{ source, target string } {
 				srcFile1 := filepath.Join(tempDir, "file1.txt")
 				srcFile2 := filepath.Join(tempDir, "file2.txt")
-				os.WriteFile(srcFile1, []byte("hello1"), 0644)
-				os.WriteFile(srcFile2, []byte("hello2"), 0644)
+				err := os.WriteFile(srcFile1, []byte("hello1"), 0644)
+				assert.NoError(t, err)
+				err = os.WriteFile(srcFile2, []byte("hello2"), 0644)
+				assert.NoError(t, err)
 				return []struct{ source, target string }{
 					{source: srcFile1, target: "dir1/file1.txt"},
 					{source: srcFile2, target: "dir2/file2.txt"},
@@ -59,10 +62,14 @@ func TestTarBuilder(t *testing.T) {
 			description: "nested directories",
 			setup: func(tempDir string) []struct{ source, target string } {
 				dir := filepath.Join(tempDir, "nested")
-				os.Mkdir(dir, 0755)
-				os.WriteFile(filepath.Join(dir, "file1.txt"), []byte("nested file1"), 0644)
-				os.Mkdir(filepath.Join(dir, "subdir"), 0755)
-				os.WriteFile(filepath.Join(dir, "subdir", "file2.txt"), []byte("nested file2"), 0644)
+				err := os.Mkdir(dir, 0755)
+				assert.NoError(t, err)
+				err = os.WriteFile(filepath.Join(dir, "file1.txt"), []byte("nested file1"), 0644)
+				assert.NoError(t, err)
+				err = os.Mkdir(filepath.Join(dir, "subdir"), 0755)
+				assert.NoError(t, err)
+				err = os.WriteFile(filepath.Join(dir, "subdir", "file2.txt"), []byte("nested file2"), 0644)
+				assert.NoError(t, err)
 				return []struct{ source, target string }{
 					{source: dir, target: "nested"},
 				}
@@ -81,7 +88,8 @@ func TestTarBuilder(t *testing.T) {
 			description: "empty directories",
 			setup: func(tempDir string) []struct{ source, target string } {
 				dir := filepath.Join(tempDir, "emptydir")
-				os.Mkdir(dir, 0755)
+				err := os.Mkdir(dir, 0755)
+				assert.NoError(t, err)
 				return []struct{ source, target string }{
 					{source: dir, target: "emptydir"},
 				}
@@ -95,9 +103,12 @@ func TestTarBuilder(t *testing.T) {
 		{
 			description: "exclude specific files",
 			setup: func(tempDir string) []struct{ source, target string } {
-				os.WriteFile(filepath.Join(tempDir, "file1.txt"), []byte("file1"), 0644)
-				os.WriteFile(filepath.Join(tempDir, "file2.log"), []byte("file2"), 0644)
-				os.WriteFile(filepath.Join(tempDir, "file3.tmp"), []byte("file3"), 0644)
+				err := os.WriteFile(filepath.Join(tempDir, "file1.txt"), []byte("file1"), 0644)
+				assert.NoError(t, err)
+				err = os.WriteFile(filepath.Join(tempDir, "file2.log"), []byte("file2"), 0644)
+				assert.NoError(t, err)
+				err = os.WriteFile(filepath.Join(tempDir, "file3.tmp"), []byte("file3"), 0644)
+				assert.NoError(t, err)
 				return []struct{ source, target string }{
 					{source: tempDir, target: ""},
 				}
@@ -119,9 +130,11 @@ func TestTarBuilder(t *testing.T) {
 			description: "symlink handling",
 			setup: func(tempDir string) []struct{ source, target string } {
 				filePath := filepath.Join(tempDir, "file.txt")
-				os.WriteFile(filePath, []byte("real file"), 0644)
+				err := os.WriteFile(filePath, []byte("real file"), 0644)
+				assert.NoError(t, err)
 				linkPath := filepath.Join(tempDir, "symlink")
-				os.Symlink("file.txt", linkPath)
+				err = os.Symlink("file.txt", linkPath)
+				assert.NoError(t, err)
 				return []struct{ source, target string }{
 					{source: tempDir, target: ""},
 				}
@@ -143,10 +156,14 @@ func TestTarBuilder(t *testing.T) {
 			setup: func(tempDir string) []struct{ source, target string } {
 				srcFile1 := filepath.Join(tempDir, "source1", "file1.txt")
 				srcFile2 := filepath.Join(tempDir, "source2", "file2.txt")
-				os.Mkdir(filepath.Dir(srcFile1), 0755)
-				os.Mkdir(filepath.Dir(srcFile2), 0755)
-				os.WriteFile(srcFile1, []byte("hello1"), 0644)
-				os.WriteFile(srcFile2, []byte("hello2"), 0644)
+				err := os.Mkdir(filepath.Dir(srcFile1), 0755)
+				assert.NoError(t, err)
+				err = os.Mkdir(filepath.Dir(srcFile2), 0755)
+				assert.NoError(t, err)
+				err = os.WriteFile(srcFile1, []byte("hello1"), 0644)
+				assert.NoError(t, err)
+				err = os.WriteFile(srcFile2, []byte("hello2"), 0644)
+				assert.NoError(t, err)
 				return []struct{ source, target string }{
 					{source: filepath.Dir(srcFile1), target: "target1"},
 					{source: filepath.Dir(srcFile2), target: "target2"},

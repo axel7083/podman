@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	util2 "github.com/containers/podman/v5/pkg/bindings/internal/util"
-	v1 "github.com/containers/podman/v5/pkg/k8s.io/api/core/v1"
-	"github.com/containers/podman/v5/pkg/util"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
+
+	util2 "github.com/containers/podman/v5/pkg/bindings/internal/util"
+	v1 "github.com/containers/podman/v5/pkg/k8s.io/api/core/v1"
+	"github.com/containers/podman/v5/pkg/util"
 
 	"github.com/containers/image/v5/types"
 	"github.com/containers/podman/v5/pkg/auth"
@@ -162,7 +163,7 @@ func getTarKubePlayContext(reader io.Reader, contextDir string) (io.ReadCloser, 
 	}
 
 	// create a tmp directory
-	tmp, err := os.MkdirTemp("", "kube")
+	tmp, err := os.MkdirTemp(os.TempDir(), "kube")
 	if err != nil {
 		return nil, err
 	}
@@ -175,6 +176,9 @@ func getTarKubePlayContext(reader io.Reader, contextDir string) (io.ReadCloser, 
 	}
 
 	err = tb.Add(playYaml, "play.yaml")
+	if err != nil {
+		return nil, err
+	}
 
 	tarfile, err := tb.Build()
 	if err != nil {
