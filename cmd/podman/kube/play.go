@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -233,7 +234,10 @@ func play(cmd *cobra.Command, args []string) error {
 			if playOptions.ContextDir == "" {
 				parentDir := path.Dir(args[0])
 				if _, err := os.Stat(parentDir); err == nil {
-					playOptions.ContextDir = parentDir
+					playOptions.ContextDir, err = filepath.Abs(parentDir)
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
