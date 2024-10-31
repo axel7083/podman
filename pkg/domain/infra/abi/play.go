@@ -301,7 +301,7 @@ func (ic *ContainerEngine) PlayKube(ctx context.Context, body io.Reader, options
 	// create pod on each document if it is a pod or deployment
 	// any other kube kind will be skipped
 	for _, document := range documentList {
-		kind, err := getKubeKind(document)
+		kind, err := util.GetKubeKind(document)
 		if err != nil {
 			return nil, fmt.Errorf("unable to read kube YAML: %w", err)
 		}

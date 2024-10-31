@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path"
 	"strings"
 	"syscall"
 
@@ -228,6 +229,13 @@ func play(cmd *cobra.Command, args []string) error {
 				return err
 			}
 			playOptions.SystemContext = systemContext
+			// if we specified --build=true but did not provide any context dir, default to directory of args[0]
+			if playOptions.ContextDir == "" {
+				parentDir := path.Dir(args[0])
+				if _, err := os.Stat(parentDir); err == nil {
+					playOptions.ContextDir = parentDir
+				}
+			}
 		}
 	}
 	if cmd.Flags().Changed("authfile") {
