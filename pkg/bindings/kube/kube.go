@@ -3,6 +3,7 @@ package kube
 import (
 	"bytes"
 	"context"
+	"github.com/containers/podman/v5/pkg/specgen"
 	"io"
 	"net/http"
 	"os"
@@ -48,6 +49,15 @@ func PlayWithBody(ctx context.Context, body io.Reader, options *PlayOptions) (*e
 	}
 	if options.Start != nil {
 		params.Set("start", strconv.FormatBool(options.GetStart()))
+	}
+	if options.GetBuild() {
+		absContext, err := specgen.ConvertWinMountPath(options.GetContextDir())
+		if err != nil {
+			return nil, err
+		}
+
+		params.Set("build", "true")
+		params.Set("context", absContext)
 	}
 
 	// For the remote case, read any configMaps passed and append it to the main yaml content

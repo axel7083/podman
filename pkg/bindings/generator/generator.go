@@ -169,12 +169,12 @@ func main() {
 		}
 
 		// go import file
-		goimport := exec.Command("../../../test/tools/build/goimports", "-w", out.Name())
+		/*goimport := exec.Command("../../../test/tools/build/goimports", "-w", out.Name())
 		goimport.Stderr = os.Stdout
 		if err := goimport.Run(); err != nil {
 			fmt.Println(err)
 			os.Exit(1)
-		}
+		}*/
 		return true
 	})
 }
