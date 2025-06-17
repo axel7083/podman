@@ -435,11 +435,20 @@ func (ic *ContainerEngine) PlayKube(ctx context.Context, body io.Reader, options
 				return nil, fmt.Errorf("unable to read YAML as Kube PersistentVolumeClaim: %w", err)
 			}
 
+			// propagate annotations
 			for name, val := range options.Annotations {
 				if pvcYAML.Annotations == nil {
 					pvcYAML.Annotations = make(map[string]string)
 				}
 				pvcYAML.Annotations[name] = val
+			}
+
+			// propagate labels
+			for name, val := range options.Labels {
+				if pvcYAML.Labels == nil {
+					pvcYAML.Labels = make(map[string]string)
+				}
+				pvcYAML.Labels[name] = val
 			}
 
 			if options.IsRemote {
@@ -467,6 +476,14 @@ func (ic *ContainerEngine) PlayKube(ctx context.Context, body io.Reader, options
 
 			if err := yaml.Unmarshal(document, &secret); err != nil {
 				return nil, fmt.Errorf("unable to read YAML as kube secret: %w", err)
+			}
+
+			// propagate labels
+			for name, val := range options.Labels {
+				if secret.Labels == nil {
+					secret.Labels = make(map[string]string)
+				}
+				secret.Labels[name] = val
 			}
 
 			r, err := ic.playKubeSecret(&secret)
@@ -650,6 +667,7 @@ func (ic *ContainerEngine) playKubePod(ctx context.Context, podName string, podY
 
 	podOpt := entities.PodCreateOptions{
 		Infra:      true,
+		Labels:     options.Labels,
 		Net:        &entities.NetOptions{NoHosts: options.NoHosts, NoHostname: options.NoHostname},
 		ExitPolicy: string(config.PodExitPolicyStop),
 	}

@@ -39,6 +39,7 @@ type playKubeOptionsWrapper struct {
 	StartCLI       bool
 	BuildCLI       bool
 	annotations    []string
+	labels         []string
 	macs           []string
 }
 
@@ -105,6 +106,13 @@ func playFlags(cmd *cobra.Command) {
 		&playOptions.annotations,
 		annotationFlagName, []string{},
 		"Add annotations to pods (key=value)",
+	)
+
+	labelFlagName := "label"
+	flags.StringArrayVar(
+		&playOptions.labels,
+		labelFlagName, []string{},
+		"Add labels to resources (key=value)",
 	)
 	_ = cmd.RegisterFlagCompletionFunc(annotationFlagName, completion.AutocompleteNone)
 	credsFlagName := "creds"
@@ -258,6 +266,18 @@ func play(cmd *cobra.Command, args []string) error {
 			playOptions.Annotations = make(map[string]string)
 		}
 		playOptions.Annotations[key] = val
+	}
+
+	// parsing the labels
+	for _, label := range playOptions.labels {
+		key, val, hasVal := strings.Cut(label, "=")
+		if !hasVal {
+			return fmt.Errorf("label %q must include an '=' sign", label)
+		}
+		if playOptions.Labels == nil {
+			playOptions.Labels = make(map[string]string)
+		}
+		playOptions.Labels[key] = val
 	}
 
 	if err := annotations.ValidateAnnotations(playOptions.Annotations); err != nil {
