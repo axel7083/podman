@@ -31,6 +31,8 @@ type PlayKubeReport struct {
 	ServiceContainerID string
 	// If set, exit with the specified exit code.
 	ExitCode *int32
+	// Warnings raised
+	Warnings []string
 }
 
 type KubePlayReport = PlayKubeReport

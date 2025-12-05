@@ -237,6 +237,7 @@ func (ic *ContainerEngine) PlayKube(ctx context.Context, body io.Reader, options
 
 	report := &entities.PlayKubeReport{}
 	validKinds := 0
+	unsupportedKinds := map[string]bool{}
 
 	// when no network options are specified, create a common network for all the pods
 	if len(options.Networks) == 0 {
@@ -477,6 +478,7 @@ func (ic *ContainerEngine) PlayKube(ctx context.Context, body io.Reader, options
 			report.Secrets = append(report.Secrets, entities.PlaySecret{CreateReport: r})
 			validKinds++
 		default:
+			unsupportedKinds[kind] = true
 			logrus.Infof("Kube kind %s not supported", kind)
 			continue
 		}
@@ -487,6 +489,10 @@ func (ic *ContainerEngine) PlayKube(ctx context.Context, body io.Reader, options
 			return nil, fmt.Errorf("ConfigMaps in podman are not a standalone object and must be used in a container")
 		}
 		return nil, fmt.Errorf("YAML document does not contain any supported kube kind")
+	}
+
+	for kind, _ := range unsupportedKinds {
+		report.Warnings = append(report.Warnings, fmt.Sprintf("unsupported kube kind %q", kind))
 	}
 
 	if !options.ServiceContainer {
