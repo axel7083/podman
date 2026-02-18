@@ -127,6 +127,10 @@ func (ic *ContainerEngine) QuadletInstall(ctx context.Context, pathsOrURLs []str
 	installDir := systemdquadlet.GetInstallUnitDirPath(rootless.IsRootless())
 	logrus.Debugf("Going to install Quadlet to directory %s", installDir)
 
+	if options.SubDirectory != "" {
+		installDir = filepath.Join(installDir, options.SubDirectory)
+	}
+
 	if err := os.MkdirAll(installDir, 0o755); err != nil {
 		return nil, fmt.Errorf("unable to create Quadlet install path %s: %w", installDir, err)
 	}

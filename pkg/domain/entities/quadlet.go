@@ -6,6 +6,8 @@ type QuadletInstallOptions struct {
 	ReloadSystemd bool
 	// Replace the installation even if the quadlet already exists
 	Replace bool
+	// SubDirectory specifies the relative directory path to install the files into
+	SubDirectory string
 }
 
 // QuadletInstallReport contains the output of the `quadlet install` command
