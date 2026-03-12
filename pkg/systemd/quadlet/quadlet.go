@@ -1576,6 +1576,12 @@ func getServiceName(quadletUnitFile *parser.UnitFile, groupName string, defaultE
 		return serviceName
 	}
 	baseServiceName := removeExtension(quadletUnitFile.Filename, "", "")
+
+	// if the quadlet has a corresponding application, its name will be used as a prefix
+	if quadletUnitFile.Application != "" {
+		baseServiceName = fmt.Sprintf("%s-%s", quadletUnitFile.Application, baseServiceName)
+	}
+
 	if baseServiceName[len(baseServiceName)-1] == '@' {
 		baseServiceName = baseServiceName[:len(baseServiceName)-1]
 		defaultExtraSuffix += "@"

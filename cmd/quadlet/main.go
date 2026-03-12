@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -15,6 +16,7 @@ import (
 	"github.com/containers/podman/v6/pkg/systemd/parser"
 	"github.com/containers/podman/v6/pkg/systemd/quadlet"
 	"github.com/containers/podman/v6/version/rawversion"
+	"github.com/sirupsen/logrus"
 )
 
 // This commandline app is the systemd generator (system and user,
@@ -88,39 +90,59 @@ func Debugf(format string, a ...any) {
 	}
 }
 
-var seen = make(map[string]struct{})
-
 func loadUnitsFromDir(sourcePath string) ([]*parser.UnitFile, error) {
-	var prevError error
-	files, err := os.ReadDir(sourcePath)
-	if err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			return nil, err
-		}
-		return []*parser.UnitFile{}, nil
-	}
-
 	var units []*parser.UnitFile
+	var prevError error
 
-	for _, file := range files {
-		name := file.Name()
-		if _, ok := seen[name]; !ok && quadlet.IsExtSupported(name) {
-			path := path.Join(sourcePath, name)
+	err := filepath.WalkDir(sourcePath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			if !errors.Is(err, fs.ErrNotExist) {
+				logrus.Warnf("Error descending into path %s: %v", path, err)
+			}
+			return filepath.SkipDir
+		}
 
-			Debugf("Loading source unit file %s", path)
+		if d.IsDir() {
+			// Don't traverse drop-in directories
+			if strings.HasSuffix(path, ".d") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
 
-			if f, err := parser.ParseUnitFile(path); err != nil {
-				err = fmt.Errorf("error loading %q, %w", path, err)
+		name := d.Name()
+		if !quadlet.IsExtSupported(name) {
+			return nil
+		}
+
+		if f, err := parser.ParseUnitFile(path); err != nil {
+			err = fmt.Errorf("error loading %q, %w", path, err)
+			if prevError == nil {
+				prevError = err
+			} else {
+				prevError = fmt.Errorf("%s\n%s", prevError, err)
+			}
+		} else {
+			rel, err := filepath.Rel(sourcePath, filepath.Dir(path))
+			if err != nil {
 				if prevError == nil {
 					prevError = err
 				} else {
 					prevError = fmt.Errorf("%s\n%s", prevError, err)
 				}
-			} else {
-				seen[name] = void
-				units = append(units, f)
 			}
+			if rel != "." {
+				f.Application = strings.Split(rel, string(filepath.Separator))[0]
+			}
+
+			units = append(units, f)
 		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
 	}
 
 	return units, prevError

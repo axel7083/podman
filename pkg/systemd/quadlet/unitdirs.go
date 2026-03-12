@@ -121,21 +121,6 @@ func AppendSubPaths(paths *searchPaths, path string, isUserFlag bool, filterPtr 
 
 	// Add the current directory
 	paths.Add(resolvedPath)
-
-	// Read the contents of the directory
-	entries, err := os.ReadDir(resolvedPath)
-	if err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			logiface.Debugf("Error occurred walking sub directories %q: %s", path, err)
-		}
-		return
-	}
-
-	// Recursively run through the contents of the directory
-	for _, entry := range entries {
-		fullPath := filepath.Join(resolvedPath, entry.Name())
-		AppendSubPaths(paths, fullPath, isUserFlag, filterPtr)
-	}
 }
 
 func skipPath(paths *searchPaths, path string, isUserFlag bool, filterPtr func(string, bool) bool) bool {

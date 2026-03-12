@@ -42,6 +42,9 @@ type UnitFile struct {
 
 	Filename string
 	Path     string
+
+	// an empty string means the quadlet is at the root directory of the config dir
+	Application string
 }
 
 type UnitFileParser struct {
